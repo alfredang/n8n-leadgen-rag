@@ -249,7 +249,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Get raw output from AI Agent\nlet raw = $json.output;\n\n// Step 1: Remove markdown formatting (```json ... ```)\nraw = raw.replace(/```json/g, '').replace(/```/g, '').trim();\n\n// Step 2: Parse JSON safely\nlet parsed;\n\ntry {\n  parsed = JSON.parse(raw);\n} catch (error) {\n  return [\n    {\n      json: {\n        parse_success: false,\n        Name: \"\",\n        Email: \"\",\n        reply_to_user: \"\",\n        lead_score: 0,\n        error: \"Invalid JSON format\",\n        raw_output: raw\n      }\n    }\n  ];\n}\n\n// Step 3: Extract Name & Email (always keep keys)\nconst name = parsed.lead_data?.name || \"\";\nconst email = parsed.lead_data?.email || \"\";\n\n// Step 4: Return structured output\nreturn [\n  {\n    json: {\n      parse_success: true,\n      Name: name,\n      Email: email,\n      reply_to_user: parsed.reply_to_user || \"\",\n      lead_score: parsed.lead_score || 0\n    }\n  }\n];"
+        "jsCode": "// Get raw output from AI Agent\nlet raw = $json.output ?? \"\";\n\n// Step 1: Remove markdown formatting (```json ... ```)\nraw = String(raw).replace(/```json/g, '').replace(/```/g, '').trim();\n\n// Fallback text Telegram will accept when the agent fails to produce\n// valid JSON — empty strings cause a 400 from sendMessage.\nconst FALLBACK_REPLY = \"Sorry, I had trouble forming a reply. Please try again.\";\n\n// Step 2: Parse JSON safely\nlet parsed;\n\ntry {\n  parsed = JSON.parse(raw);\n} catch (error) {\n  return [\n    {\n      json: {\n        parse_success: false,\n        Name: \"\",\n        Email: \"\",\n        reply_to_user: raw && raw.length < 4000 ? raw : FALLBACK_REPLY,\n        lead_score: 0,\n        error: \"Invalid JSON format\",\n        raw_output: raw\n      }\n    }\n  ];\n}\n\n// Step 3: Extract Name & Email (always keep keys)\nconst name = parsed.lead_data?.name || \"\";\nconst email = parsed.lead_data?.email || \"\";\n\n// Step 4: Return structured output\nreturn [\n  {\n    json: {\n      parse_success: true,\n      Name: name,\n      Email: email,\n      reply_to_user: parsed.reply_to_user || FALLBACK_REPLY,\n      lead_score: parsed.lead_score || 0\n    }\n  }\n];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -353,38 +353,7 @@
       }
     }
   ],
-  "pinData": {
-    "Telegram Trigger": [
-      {
-        "json": {
-          "update_id": 376375243,
-          "message": {
-            "message_id": 35,
-            "from": {
-              "id": 1116676753,
-              "is_bot": false,
-              "first_name": "Amaresh",
-              "last_name": "Sahoo",
-              "username": "Sahoo_Amaresh",
-              "language_code": "en"
-            },
-            "chat": {
-              "id": 1116676753,
-              "first_name": "Amaresh",
-              "last_name": "Sahoo",
-              "username": "Sahoo_Amaresh",
-              "type": "private"
-            },
-            "date": 1775540631,
-            "text": "hi"
-          }
-        },
-        "pairedItem": {
-          "item": 0
-        }
-      }
-    ]
-  },
+  "pinData": {},
   "connections": {
     "Upload Webhook": {
       "main": [

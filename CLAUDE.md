@@ -26,13 +26,13 @@ n8n  Webhook (/webhook/upload-document, CORS *)
 
 n8n  Telegram Trigger
   └── → AI Agent (system prompt: 2-stage flow — register name+email, then RAG-answer)
-        ← OpenAI Chat Model
+        ← Google Gemini Chat Model (credential type: googlePalmApi)
         ← Simple Memory (sessionKey = telegram user id, window = 10)
         ← Supabase Vector Store1 (mode: retrieve-as-tool, same `documents` table)
               ← Embeddings OpenAI1
-  └── → Code in JavaScript (strips ```json fences, parses output, surfaces Name/Email/lead_score)
+  └── → Code in JavaScript (strips ```json fences, parses output, surfaces Name/Email/lead_score; falls back to a friendly reply if the agent emits non-JSON so Telegram never receives an empty `text`)
   └── → If (lead_score > 69)
-        ├── true → Send a message (Gmail — usually disabled until OAuth credential exists)
+        ├── true → Send a message (Gmail — disabled by default until OAuth credential exists; recipient is a `sales@sales.com` placeholder, replace before activation)
         └── false → Send a text message (Telegram reply via $('Telegram Trigger').item.json.message.chat.id)
 ```
 
@@ -65,9 +65,10 @@ end; $$;
 
 Required n8n credentials (the IDs in the JSON are placeholders from the original exporter — they always need to be re-picked on import):
 - `supabaseApi` — **Host** = the Supabase project URL (e.g. `https://jbhhthtkdjtkbxmtpdvp.supabase.co`); **Service Role Secret** = the legacy `service_role` JWT (NOT the new `sb_publishable_*` / `sb_secret_*` keys, NOT the anon key).
-- `openAiApi` — applied to both Chat Model and both Embeddings nodes.
+- `googlePalmApi` — applied to the **Google Gemini Chat Model** node. Get an API key from https://aistudio.google.com/app/apikey.
+- `openAiApi` — applied to both Embeddings OpenAI nodes (insert side **and** retrieve side). The chat model is Gemini, not OpenAI.
 - `telegramApi` — applied to Telegram Trigger AND Send a text message (easy to forget the second one).
-- `gmailOAuth2` — optional. If absent, **disable the `Send a message` (Gmail) node** before activating, otherwise n8n refuses activation citing missing credentials.
+- `gmailOAuth2` — optional. If absent, **disable the `Send a message` (Gmail) node** before activating, otherwise n8n refuses activation citing missing credentials. The `sendTo` field is hardcoded to a `sales@sales.com` placeholder — replace it before going live.
 
 ## Common tasks
 
@@ -106,4 +107,4 @@ The user routinely edits the exported JSON and re-imports. Two gotchas:
 
 ## When the Telegram bot "doesn't respond"
 
-The most useful single check is `getWebhookInfo` against the bot token. If `pending_update_count` is 0 and `url` matches the active n8n instance, Telegram is delivering messages and getting HTTP 200 back — the bug is inside the workflow (almost always either an OpenAI quota / 429 on the AI Agent, or the Code node receiving non-JSON output and emitting empty `reply_to_user`, which Telegram silently drops). Open the n8n Executions panel for the workflow to see which node failed.
+The most useful single check is `getWebhookInfo` against the bot token. If `pending_update_count` is 0 and `url` matches the active n8n instance, Telegram is delivering messages and getting HTTP 200 back — the bug is inside the workflow (almost always either a Gemini quota / 429 on the AI Agent, an OpenAI 429 on the Embeddings node, or the Code node receiving non-JSON output. The Code node now substitutes a fallback string when JSON parsing fails so Telegram doesn't 400 on an empty `text`, but a legitimate node failure upstream will still error the run). Open the n8n Executions panel for the workflow to see which node failed.

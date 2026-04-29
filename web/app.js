@@ -150,10 +150,22 @@ async function handleFile(file) {
       content.slice(0, 1500) + (content.length > 1500 ? "\n...[truncated]" : "");
     fileMeta.classList.remove("hidden");
     submitBtn.disabled = false;
-    setStatus(
-      `Ready to upload — ${content.length.toLocaleString()} characters parsed.`,
-      "success"
-    );
+
+    // n8n's default webhook payload limit is 16 MB. Warn (not block) so the
+    // user knows large files may 413 on the server side.
+    const SOFT_WARN_BYTES = 8 * 1024 * 1024;
+    const charBytes = new Blob([content]).size;
+    if (charBytes > SOFT_WARN_BYTES) {
+      setStatus(
+        `Ready to upload — ${content.length.toLocaleString()} characters parsed (~${formatBytes(charBytes)}). Large payload: n8n's default webhook body limit is 16 MB, so this may 413. Consider splitting the file.`,
+        "warn"
+      );
+    } else {
+      setStatus(
+        `Ready to upload — ${content.length.toLocaleString()} characters parsed.`,
+        "success"
+      );
+    }
   } catch (err) {
     console.error(err);
     setStatus(`Failed to parse file: ${err.message || err}`, "error");
@@ -166,6 +178,20 @@ async function submit() {
   const url = webhookUrlEl.value.trim();
   if (!url) {
     setStatus("Please enter the n8n webhook URL.", "error");
+    return;
+  }
+  let parsedUrl;
+  try {
+    parsedUrl = new URL(url);
+  } catch {
+    setStatus("Webhook URL is not a valid URL.", "error");
+    return;
+  }
+  if (
+    parsedUrl.protocol !== "https:" &&
+    !(parsedUrl.protocol === "http:" && /^(localhost|127\.0\.0\.1|\[::1\])$/.test(parsedUrl.hostname))
+  ) {
+    setStatus("Webhook URL must use HTTPS (or http://localhost for dev).", "error");
     return;
   }
 

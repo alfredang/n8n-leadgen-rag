@@ -6,7 +6,7 @@ This guide walks you from zero to a working lead-qualification chatbot:
 2. The file's content is embedded by OpenAI and stored in Supabase as a vector knowledge base.
 3. Users chat with a Telegram bot that answers questions using that knowledge base and scores them as leads.
 
-You will set up four external services (Supabase, OpenAI, Telegram, n8n) and connect them via one n8n workflow plus one local web tool.
+You will set up five external services (Supabase, OpenAI, Google Gemini, Telegram, n8n) and connect them via one n8n workflow plus one local web tool.
 
 **Estimated time:** 30–45 minutes if you start from scratch.
 
@@ -16,9 +16,9 @@ You will set up four external services (Supabase, OpenAI, Telegram, n8n) and con
 
 - A computer with **Python 3** installed (for serving the web tool — `python3 --version` to check).
 - A web browser.
-- An email account you can use to sign up for Supabase, OpenAI, and n8n.
+- An email account you can use to sign up for Supabase, OpenAI, Google AI Studio, and n8n.
 - A phone with **Telegram** installed (to talk to BotFather).
-- A credit / debit card for OpenAI billing (you cannot use the API on the free tier).
+- A credit / debit card for OpenAI billing (the embedding API isn't available on the free tier). Google Gemini has a free tier that's sufficient for development.
 
 ---
 
@@ -106,9 +106,9 @@ If your dashboard shows the new format (`sb_publishable_*` and `sb_secret_*`), s
 
 ---
 
-## Part 2 — OpenAI
+## Part 2 — OpenAI (embeddings only)
 
-OpenAI provides the chat model (GPT-4o or GPT-4o-mini) and the embedding model.
+OpenAI is used **only for the embedding model** (`text-embedding-3-small`, 1536-dim). The chat model is Google Gemini — see Part 3.
 
 ### 2.1 Create an account and add billing
 
@@ -118,20 +118,34 @@ OpenAI provides the chat model (GPT-4o or GPT-4o-mini) and the embedding model.
 ### 2.2 Create an API key
 
 1. Go to https://platform.openai.com/api-keys.
-2. Click **Create new secret key**, give it a label (e.g. `n8n-leadgen`), and copy the key. It starts with `sk-...`.
+2. Click **Create new secret key**, give it a label (e.g. `n8n-leadgen-embeddings`), and copy the key. It starts with `sk-...`.
 3. Save it somewhere safe — you cannot view it again after this dialog closes.
 
 ### 2.3 Quick budget tip
 
-`gpt-4o-mini` costs roughly 1/10th of `gpt-4o` and works well for this agent. Embeddings (`text-embedding-3-small`, the default) are very cheap. Uploading the included 1000-row mock CSV costs under $0.05.
+Embeddings (`text-embedding-3-small`, the default) are very cheap. Uploading the included 1000-row mock CSV costs under $0.05. Embedding usage is one-time per upload; ongoing chat traffic doesn't hit OpenAI.
 
 ---
 
-## Part 3 — Telegram
+## Part 3 — Google Gemini (chat model)
+
+The AI Agent uses **Google Gemini** via the LangChain `lmChatGoogleGemini` node.
+
+### 3.1 Create a Google AI Studio API key
+
+1. Go to https://aistudio.google.com/app/apikey and sign in with a Google account.
+2. Click **Create API key** and pick / create a Google Cloud project.
+3. Copy the key (starts with `AIza...`). Save it.
+
+The free tier (currently 15 RPM / 1M TPM on `gemini-1.5-flash`) is enough for development. If you hit 429s during testing, either wait a minute or upgrade to a paid Google Cloud billing account.
+
+---
+
+## Part 4 — Telegram
 
 Telegram is the chat interface users will use to talk to the agent.
 
-### 3.1 Create a bot via BotFather
+### 4.1 Create a bot via BotFather
 
 1. In Telegram, search for the user **`@BotFather`** and start a chat.
 2. Send `/newbot`.
@@ -139,22 +153,22 @@ Telegram is the chat interface users will use to talk to the agent.
 4. BotFather asks for a **username** ending in `bot` (e.g. `bell_leadgen_bot`). It must be unique across all of Telegram.
 5. BotFather replies with a token of the form `123456789:ABCDEF...`. **Save this token.**
 
-### 3.2 Find your bot
+### 4.2 Find your bot
 
 In the BotFather reply there's a `t.me/<your_bot>` link. Click it, then **Start** the chat. Send any message to the bot — it won't reply yet, but this gets the chat ready.
 
 ---
 
-## Part 4 — n8n
+## Part 5 — n8n
 
 n8n is the workflow engine. You can run it locally or use the cloud (Hostinger, n8n Cloud, etc.).
 
-### 4.1a Option A: n8n Cloud / hosted
+### 5.1a Option A: n8n Cloud / hosted
 
 1. Sign up at https://n8n.io or use your hosting provider's deployment (e.g. `https://n8n.<your-host>.cloud`).
 2. Note the URL — you'll need it later.
 
-### 4.1b Option B: local Docker
+### 5.1b Option B: local Docker
 
 ```bash
 docker run -d --restart unless-stopped \
@@ -168,15 +182,15 @@ Open http://localhost:5678 and create the owner account.
 
 > **Caveat for local n8n:** Telegram cannot deliver messages to `localhost`. For local development you can either use `ngrok` to expose your local n8n publicly (and configure n8n with `WEBHOOK_URL`), or use the cloud option for the Telegram side.
 
-### 4.2 Import the workflow
+### 5.2 Import the workflow
 
 1. In n8n, open **Workflows → Import from File** (or paste from URL).
 2. Select [Lead Qualification Agent with RAG and Telegram interface.json](Lead Qualification Agent with RAG and Telegram interface.json) from this repo.
 3. The workflow opens in the editor. Don't activate it yet — credentials still need to be wired up.
 
-### 4.3 Create credentials in n8n
+### 5.3 Create credentials in n8n
 
-In n8n's left sidebar, open **Credentials** and create the following four. (Some installations call this section **Settings → Credentials**.)
+In n8n's left sidebar, open **Credentials** and create the following five. (Some installations call this section **Settings → Credentials**.)
 
 #### Supabase API
 - Click **New Credential → Supabase API**.
@@ -189,9 +203,14 @@ In n8n's left sidebar, open **Credentials** and create the following four. (Some
 - **API Key:** the `sk-...` key from §2.2
 - Click **Save**.
 
+#### Google Gemini (PaLM) API
+- Click **New Credential → Google Gemini(PaLM) API** (also listed as **Google PaLM**).
+- **API Key:** the `AIza...` key from §3.1
+- Click **Save**.
+
 #### Telegram API
 - Click **New Credential → Telegram**.
-- **Access Token:** the token from BotFather in §3.1
+- **Access Token:** the token from BotFather in §4.1
 - Click **Save**.
 
 #### Gmail OAuth (optional)
@@ -199,29 +218,29 @@ The workflow's `Send a message` node sends a notification email when a lead's sc
 
 If you do want it: **New Credential → Gmail OAuth2 API**, and follow n8n's OAuth-consent flow with a Google Cloud project that has the Gmail API enabled.
 
-### 4.4 Wire credentials onto every node that needs them
+### 5.4 Wire credentials onto every node that needs them
 
 After import, each node's credential dropdown will show a warning. Open these nodes one by one and pick the matching credential from the dropdown. **Don't miss the ones marked ⚠️ — they're easy to forget:**
 
 | Node name | Credential type | Notes |
 |---|---|---|
-| OpenAI Chat Model | OpenAI |  |
+| Google Gemini Chat Model | Google Gemini(PaLM) API | This is the chat LLM, not OpenAI |
 | Embeddings OpenAI | OpenAI | (insert side) |
 | Embeddings OpenAI1 | OpenAI | ⚠️ (retrieve side) |
 | Supabase Vector Store | Supabase | Operation = Insert Documents, Table Name = `documents` |
 | Supabase Vector Store1 | Supabase | ⚠️ Operation = Retrieve as Tool, Table Name = `documents` |
 | Telegram Trigger | Telegram |  |
 | Send a text message | Telegram | ⚠️ Often missed |
-| Send a message | Gmail | ⚠️ If skipping Gmail, **disable** this node |
+| Send a message | Gmail | ⚠️ If skipping Gmail, **disable** this node. The `To` field is hardcoded to `sales@sales.com` — replace with a real address before enabling. |
 
 For the two **Supabase Vector Store** nodes, after picking the credential, click the **Table Name** dropdown — `documents` should appear. Pick it.
 
 Inside the **AI Agent** node, confirm:
-- **Chat Model** → connected to OpenAI Chat Model
+- **Chat Model** → connected to Google Gemini Chat Model
 - **Memory** → connected to Simple Memory
 - **Tool** → connected to Supabase Vector Store1 (the retrieve-as-tool one)
 
-### 4.5 Activate the workflow
+### 5.5 Activate the workflow
 
 1. In the top-right corner of the editor, click the **Inactive** toggle to flip it to **Active**.
 2. n8n will show errors here if any node still has missing credentials — fix them and try again.
@@ -239,11 +258,11 @@ The `url` field should match your n8n instance.
 
 ---
 
-## Part 5 — The web tool
+## Part 6 — The web tool
 
 The static web tool parses your file in the browser and POSTs JSON to the n8n upload webhook.
 
-### 5.1 Configure the default webhook URL (optional)
+### 6.1 Configure the default webhook URL (optional)
 
 [web/index.html](web/index.html) has a default URL near the top. Edit the `value` and `placeholder` of `#webhookUrl` to match your n8n:
 
@@ -255,7 +274,7 @@ The static web tool parses your file in the browser and POSTs JSON to the n8n up
 
 You can also leave the default and edit the URL in the form at runtime — it persists in `localStorage`.
 
-### 5.2 Run it
+### 6.2 Run it
 
 ```bash
 cd web
@@ -268,9 +287,9 @@ Open http://localhost:8889/ in your browser.
 
 ---
 
-## Part 6 — End-to-end test
+## Part 7 — End-to-end test
 
-### 6.1 Upload a document
+### 7.1 Upload a document
 
 1. Open http://localhost:8889/.
 2. Confirm the webhook URL field matches your n8n.
@@ -278,11 +297,11 @@ Open http://localhost:8889/ in your browser.
 4. Click **Upload to Supabase**.
 5. Watch for "Uploaded successfully." Large files may take 30–60 seconds while OpenAI embeds each chunk.
 
-### 6.2 Verify rows landed in Supabase
+### 7.2 Verify rows landed in Supabase
 
 In the Supabase dashboard, **Table Editor → documents**. You should see rows with `content`, `metadata` (containing `source` filename and `uploaded_at`), and `embedding`.
 
-### 6.3 Chat with the bot
+### 7.3 Chat with the bot
 
 1. Open Telegram and open the chat with your bot.
 2. Send a message in **the exact format**: `Your Name, you@example.com`
@@ -291,11 +310,11 @@ In the Supabase dashboard, **Table Editor → documents**. You should see rows w
 4. The agent will:
    - Embed your question with OpenAI
    - Search Supabase for the top 5 matching chunks
-   - Compose an answer using GPT-4o
+   - Compose an answer using Google Gemini
    - Score you as a lead from 0–100 based on signals in the conversation
    - Reply in Telegram
 
-If your score crosses 70 and Gmail is configured, the workflow also sends a sales notification email.
+If your score crosses 70 and Gmail is configured (with a real recipient — see §5.4), the workflow also sends a sales notification email.
 
 ---
 
@@ -310,8 +329,10 @@ The webhook isn't reachable. Common causes:
 ### Webhook returns 500
 The workflow fired but errored. Open the n8n **Executions** panel for the workflow and click into the most recent failed run. The error is usually:
 - A node missing credentials.
-- The OpenAI key out of credits / hitting a rate limit (`429`).
+- The OpenAI key out of credits / hitting a rate limit (`429`) on the Embeddings node.
+- The Google Gemini key out of free-tier quota (`429`) on the Chat Model.
 - The Default Data Loader's expression broken — should be `{{ $('Upload Webhook').item.json.body.content }}` with `jsonMode = expressionData`.
+- The `documents` table or `match_documents` function missing in the Supabase project the credential points at (see §1.2).
 
 ### Telegram bot doesn't reply
 Run:
@@ -323,7 +344,7 @@ curl "https://api.telegram.org/bot<YOUR_TOKEN>/getWebhookInfo" | python3 -m json
 - If `url` is empty → workflow isn't active. Activate it.
 - If `url` points elsewhere → another n8n instance grabbed this bot's webhook. Reactivate the correct workflow (or call `setWebhook` manually with the right URL).
 - If `pending_update_count > 0` → n8n is returning non-200 responses. Check Executions.
-- If `pending_update_count == 0` and bot still doesn't respond → the workflow ran but didn't send a reply. Most often: the AI Agent failed (OpenAI quota / rate limit) and `reply_to_user` was empty (Telegram silently drops empty messages).
+- If `pending_update_count == 0` and bot still doesn't respond → the workflow ran but didn't send a reply. Open Executions to see which node errored. The Code node now substitutes a fallback string when the agent emits non-JSON, so empty `reply_to_user` is no longer the usual culprit; suspect a Gemini 429, an OpenAI 429 on Embeddings1, or a missing credential on `Send a text message`.
 
 ### Bot keeps asking for Name and Email
 The bot is doing what its system prompt says. Send a message in **exactly** this format on a single line:
@@ -336,6 +357,11 @@ If you've already registered and it's still asking, the **Simple Memory** window
 
 ### "Cannot publish workflow: N nodes have configuration issues"
 n8n is telling you which nodes lack credentials. Open each one and assign the right credential. If you're skipping Gmail, **disable** the `Send a message` node so n8n stops complaining about it.
+
+### Bot replies with someone else's name / a stale message
+If you imported an older copy of the workflow JSON, the **Telegram Trigger** may have **pinned data** from a previous test run (e.g. a fake "Amaresh Sahoo" message). In test mode that pinned payload overrides the real Telegram update, so the bot answers the wrong person.
+
+Open the Telegram Trigger node → click the pinned data badge → **Unpin**. Or re-import the current workflow JSON in this repo, which ships with `pinData: {}`.
 
 ### Supabase service_role key isn't visible in dashboard
 The new Supabase API keys UI hides the legacy JWTs by default. Look for a **Legacy JWT keys** or **JWT Settings** section on the same API page — that's where the legacy `service_role` key lives.
@@ -350,7 +376,8 @@ Keep these somewhere safe (NOT in source control):
 |---|---|---|
 | Supabase | Project URL | n8n Supabase credential **Host** |
 | Supabase | `service_role` JWT | n8n Supabase credential **Service Role Secret** |
-| OpenAI | API key (`sk-...`) | n8n OpenAI credential **API Key** |
+| OpenAI | API key (`sk-...`) | n8n OpenAI credential **API Key** (embeddings only) |
+| Google Gemini | API key (`AIza...`) | n8n Google Gemini(PaLM) credential **API Key** (chat model) |
 | Telegram | Bot token (from BotFather) | n8n Telegram credential **Access Token** |
 | n8n | Instance URL | Web tool **n8n Webhook URL** field (append `/webhook/upload-document`) |
 

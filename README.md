@@ -4,7 +4,8 @@
 
 [![n8n](https://img.shields.io/badge/n8n-workflow-EA4B71?logo=n8n&logoColor=white)](https://n8n.io)
 [![Supabase](https://img.shields.io/badge/Supabase-pgvector-3FCF8E?logo=supabase&logoColor=white)](https://supabase.com)
-[![OpenAI](https://img.shields.io/badge/OpenAI-GPT--4o-412991?logo=openai&logoColor=white)](https://platform.openai.com)
+[![Google Gemini](https://img.shields.io/badge/Google-Gemini-4285F4?logo=google&logoColor=white)](https://aistudio.google.com)
+[![OpenAI](https://img.shields.io/badge/OpenAI-Embeddings-412991?logo=openai&logoColor=white)](https://platform.openai.com)
 [![Telegram](https://img.shields.io/badge/Telegram-Bot-26A5E4?logo=telegram&logoColor=white)](https://core.telegram.org/bots)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
@@ -43,7 +44,7 @@ A lightweight, production-ready lead-generation pipeline composed of three piece
 |---|---|
 | Frontend | Vanilla HTML5, CSS3, JavaScript (ES2020), [SheetJS](https://sheetjs.com/) for Excel parsing |
 | Workflow Engine | [n8n](https://n8n.io) (self-hosted or cloud) |
-| LLM | OpenAI GPT-4o / GPT-4o-mini |
+| LLM | [Google Gemini](https://aistudio.google.com) (via the LangChain `lmChatGoogleGemini` node) |
 | Embeddings | OpenAI `text-embedding-3-small` (1536-dim) |
 | Vector Store | [Supabase](https://supabase.com) Postgres + [pgvector](https://github.com/pgvector/pgvector) |
 | Chat Interface | Telegram Bot API |
@@ -159,7 +160,7 @@ Required environment variables (use [.env.example](.env.example) as a template �
 | `NEXT_PUBLIC_SUPABASE_URL` | Project URL for reference |
 | `TELEGRAM_BOT_TOKEN` | Bot token from BotFather (used by the diagnostic `/leadgen-status` command) |
 
-The actual API keys consumed by the workflow (OpenAI, Telegram, Supabase service-role) are stored as **n8n credentials** inside the n8n instance — not in `.env` and not in this repo.
+The actual API keys consumed by the workflow (Google Gemini, OpenAI Embeddings, Telegram, Supabase service-role) are stored as **n8n credentials** inside the n8n instance — not in `.env` and not in this repo.
 
 ## Diagnostic command
 
