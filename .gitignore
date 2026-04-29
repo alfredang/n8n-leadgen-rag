@@ -1,0 +1,14 @@
+.env
+.env.local
+.env.*.local
+node_modules/
+.DS_Store
+
+# Vendored Claude Code skills (installed per-machine, not project-specific)
+.claude/skills/
+.claude/agents/
+.claude/hooks/
+
+# Local Claude Code state
+.claude/settings.local.json
+.playwright-mcp/
