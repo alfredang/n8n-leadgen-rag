@@ -4,11 +4,9 @@
 node_modules/
 .DS_Store
 
-# Vendored Claude Code hooks (installed per-machine)
-.claude/hooks/
-
-# Note: .claude/agents/, .claude/commands/, and .claude/skills/ ARE committed
-# — they hold project-specific reviewers, slash commands, and skills.
+# Note: .claude/agents/, .claude/commands/, .claude/skills/, and .claude/hooks/
+# ARE committed — they hold project-specific reviewers, slash commands, skills,
+# and harness hooks that should ship with the repo.
 
 # Local Claude Code state
 .claude/settings.local.json
